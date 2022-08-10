@@ -1,8 +1,8 @@
-;;;;;;;;;;;;;;;;;;;
+;;;;;
 
-USING 0
-POSITIVE   EQU P2.5
-COMPLEMENT EQU P2.4
+USING 0             ; ????? ????????? "???????" ?? ??? ???? ???? ?? ???? ?????? ????
+POSITIVE   EQU P2.5 ; ??? ?????? ???? ?????? ???? ????? ???????
+COMPLEMENT EQU P2.4 ; 
 	 
 #include <ADUC841.H>
 
@@ -66,7 +66,7 @@ SETB		TR2						; Turn on Timer2.
 SETB		ET2						; Enable the Timer2 interrupt.  You will _not_ want to do this.
 ;###### ????? PWM
 
-MOV PWMCON,#17H   ; using PWM PIN p2.7 
+MOV 	,#13H  ; mode1 send using p2.7
 MOV PWM0L, #255d
 MOV PWM1L, #255d
 MOV PWM1H, #255d
@@ -84,6 +84,7 @@ CLR			CPHA
 SETB		SPR1
 SETB		SPR0
 ORL			IEIP2,#00000001B 							; SPI
+SETB		ES									; Enable the serial interrupt.
 ;????? DAC
 MOV 		DACCON,		#00D6H						
 ANL			ADCCON1,	#10111111B
@@ -91,7 +92,7 @@ ORL			ADCCON1,	#10000000B
 ;????? UART TIMER
 MOV			T3FD,		#020H					;Sets timer 3
 ANL			T3CON,		#01111000B				;Sets the timer and the DIV value (2)
-ORL			T3CON,		#10000100B
+ORL			T3CON,		#10000010B
 ANL			TMOD,		#11110000B				;Sets timer 0 
 ORL			TMOD,		#00000010B
 MOV			TH0,		#040
@@ -256,9 +257,9 @@ MOV			DAC1L,		A
 MOV TARGET, A
 MOV CURRENT_MEASUREMENT, MSB_SAMPLE
 CALL MULsubbOfAngle
-;MOV		DAC1L,		RESULT
+;MOV			DAC1L,		RESULT
 MOV 		PWM0H,		RESULT
-;MOV 		PWM0H,		#100D
+;MOV 		PWM0H,		#100
 MOV 		PWM0L,		#0D
 
 
@@ -354,6 +355,7 @@ PUSH ACC
 PUSH PSW
 	JB END_FIRST_SPI,SECOND_SPI
 	MOV	MSB_SAMPLE,	SPIDAT	; needed to clear ISPI.
+	;CJNE MSB_SAMPLE,#0FH
 	SETB END_FIRST_SPI
 	
 	POP PSW
@@ -385,6 +387,7 @@ CLR C
 SUBB A,R1
 SETB POSITIVE
 CLR  COMPLEMENT
+;CPL P3.4
 JNB ACC.7,EndOfsubbOfAngle
 CLR  POSITIVE
 SETB COMPLEMENT
@@ -414,206 +417,207 @@ RET
 
 ;Table of values of the sine signal
 sin:
-DB       128
-DB       131
-DB       134
-DB       137
-DB       141
-DB       144
-DB       147
-DB       150
-DB       153
-DB       156
-DB       159
-DB       162
-DB       165
-DB       168
-DB       171
-DB       173
-DB       176
-DB       179
-DB       182
-DB       184
-DB       187
-DB       189
-DB       192
-DB       194
-DB       196
-DB       199
-DB       201
-DB       203
-DB       205
-DB       207
-DB       209
-DB       211
-DB       212
-DB       214
-DB       216
-DB       217
-DB       218
-DB       220
-DB       221
-DB       222
-DB       223
+DB       255
+DB       255
+DB       255
+DB       255
+DB       254
+DB       254
+DB       253
+DB       252
+DB       251
+DB       250
+DB       249
+DB       248
+DB       247
+DB       245
+DB       243
+DB       242
+DB       240
+DB       238
+DB       236
+DB       233
+DB       231
+DB       229
+DB       226
 DB       224
-DB       225
-DB       226
-DB       226
-DB       227
-DB       227
-DB       228
-DB       228
-DB       228
-DB       228
-DB       228
-DB       228
-DB       228
-DB       227
-DB       227
-DB       226
-DB       226
-DB       225
-DB       224
-DB       223
-DB       222
 DB       221
-DB       220
 DB       218
-DB       217
-DB       216
-DB       214
+DB       215
 DB       212
-DB       211
 DB       209
-DB       207
-DB       205
+DB       206
 DB       203
-DB       201
 DB       199
 DB       196
-DB       194
-DB       192
+DB       193
 DB       189
-DB       187
-DB       184
+DB       186
 DB       182
-DB       179
-DB       176
-DB       173
+DB       178
+DB       175
 DB       171
-DB       168
-DB       165
-DB       162
+DB       167
+DB       163
 DB       159
-DB       156
-DB       153
-DB       150
-DB       147
+DB       155
+DB       151
+DB       148
 DB       144
-DB       141
-DB       137
-DB       134
-DB       131
+DB       140
+DB       136
+DB       132
 DB       128
-DB       125
-DB       122
+DB       123
 DB       119
 DB       115
-DB       112
-DB       109
-DB       106
-DB       103
+DB       111
+DB       107
+DB       104
 DB       100
-DB       97
-DB       94
-DB       91
+DB       96
+DB       92
 DB       88
-DB       85
-DB       83
+DB       84
 DB       80
 DB       77
-DB       74
-DB       72
+DB       73
 DB       69
-DB       67
-DB       64
+DB       66
 DB       62
-DB       60
-DB       57
-DB       55
-DB       53
-DB       51
+DB       59
+DB       56
+DB       52
 DB       49
-DB       47
-DB       45
-DB       44
-DB       42
+DB       46
+DB       43
 DB       40
-DB       39
-DB       38
-DB       36
-DB       35
+DB       37
 DB       34
-DB       33
-DB       32
 DB       31
-DB       30
-DB       30
 DB       29
+DB       26
+DB       24
+DB       22
+DB       19
+DB       17
+DB       15
+DB       13
+DB       12
+DB       10
+DB       8
+DB       7
+DB       6
+DB       5
+DB       4
+DB       3
+DB       2
+DB       1
+DB       1
+DB       0
+DB       0
+DB       0
+DB       0
+DB       0
+DB       0
+DB       0
+DB       1
+DB       1
+DB       2
+DB       3
+DB       4
+DB       5
+DB       6
+DB       7
+DB       8
+DB       10
+DB       12
+DB       13
+DB       15
+DB       17
+DB       19
+DB       22
+DB       24
+DB       26
 DB       29
-DB       28
-DB       28
-DB       28
-DB       28
-DB       28
-DB       28
-DB       28
-DB       29
-DB       29
-DB       30
-DB       30
 DB       31
-DB       32
-DB       33
 DB       34
-DB       35
-DB       36
-DB       38
-DB       39
+DB       37
 DB       40
-DB       42
-DB       44
-DB       45
-DB       47
+DB       43
+DB       46
 DB       49
-DB       51
-DB       53
-DB       55
-DB       57
-DB       60
+DB       52
+DB       56
+DB       59
 DB       62
-DB       64
-DB       67
+DB       66
 DB       69
-DB       72
-DB       74
+DB       73
 DB       77
 DB       80
-DB       83
-DB       85
+DB       84
 DB       88
-DB       91
-DB       94
-DB       97
+DB       92
+DB       96
 DB       100
-DB       103
-DB       106
-DB       109
-DB       112
+DB       104
+DB       107
+DB       111
 DB       115
 DB       119
-DB       122
-DB       125
+DB       123
+DB       127
+DB       132
+DB       136
+DB       140
+DB       144
+DB       148
+DB       151
+DB       155
+DB       159
+DB       163
+DB       167
+DB       171
+DB       175
+DB       178
+DB       182
+DB       186
+DB       189
+DB       193
+DB       196
+DB       199
+DB       203
+DB       206
+DB       209
+DB       212
+DB       215
+DB       218
+DB       221
+DB       224
+DB       226
+DB       229
+DB       231
+DB       233
+DB       236
+DB       238
+DB       240
+DB       242
+DB       243
+DB       245
+DB       247
+DB       248
+DB       249
+DB       250
+DB       251
+DB       252
+DB       253
+DB       254
+DB       254
+DB       255
+DB       255
+DB       255
+
 
 ;Allocation of flags, etc.
 DSEG	AT		0028H
