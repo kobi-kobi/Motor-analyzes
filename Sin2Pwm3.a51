@@ -5,13 +5,12 @@ COMPLEMENT 		  EQU P2.4
 	 
 #include <ADUC841.H>
 
-UNITS				EQU			R2
-TENS				EQU			R3
-HUNDREDS			EQU			R4
-WAVE				EQU         R5	
+;UNITS				EQU			R2
+;TENS				EQU			R3
+;HUNDREDS			EQU			R4
+;WAVE				EQU         R5	
 COUNTER_H			EQU			R6
-COUNTER_L			EQU			R7
-;OFFSET 			EQU		    20        
+COUNTER_L			EQU			R7      
 
 CSEG			AT					0000H
 MOV				    SP, #0CH
@@ -20,7 +19,7 @@ JMP					MAIN
 
 
 CSEG			AT					000BH					; Timer 0 ISR
-CALL			 	waves
+CALL			 	WAVES
 JB					FINISH_ROUND,END_BH
 RETI
 END_BH: 
@@ -247,11 +246,11 @@ MOVC			A,			@A+DPTR
 MOV				DPTR,		#NUMS
 
 CONTINUE:
-MOV		   		DAC1L,		A
+;MOV		   		DAC1L,		A
 MOV				TARGET,		A
 MOV 		 	CURRENT_MEASUREMENT, MSB_SAMPLE
 CALL		 	MULsubbOfAngle
-										;MOV		DAC1L,		RESULT
+MOV		DAC1L,		RESULT
 MOV 			PWM0H,		RESULT
 MOV		 		PWM0L,		#0D
 
@@ -631,9 +630,9 @@ DB	128
 
 
 
-;Allocation of flags, etc.
+;All Location of flags, etc.
 DSEG				AT		0030H
-ADD_H:						DS		1
+ADD_H:						DS		1   ; Byte
 ADD_L:						DS		1
 MSB_SAMPLE:			        DS	    1
 LSB_SAMPLE:			        DS	    1	
@@ -645,7 +644,10 @@ CURRENT_MEASUREMENT:	    DS	 	1
 TARGET:					    DS 		1
 RESULT:					    DS 		1
 STRING:			    	    DS	    8
-
+UNITS:						DS		1
+TENS:        				DS		1
+HUNDREDS:					DS		1
+WAVE:						DS      1	
 
 	
 BSEG 
