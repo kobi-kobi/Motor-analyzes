@@ -1,6 +1,7 @@
+; F100 in PuTTY it say rotation speed of the list 100 times a second (Hz)
 
-USING 0             
-POSITIVE 		  EQU P2.5 
+USING 0                      ; Register bank 0          
+POSITIVE 		  EQU P2.5   ; Against the clockwise - positive degrees
 COMPLEMENT 		  EQU P2.4 
 	 
 #include <ADUC841.H>
@@ -18,31 +19,32 @@ JMP					MAIN
 
 
 
-CSEG			AT					000BH					; Timer 0 ISR
-MOV				TL0,		#090H
-MOV				TH0,		#0F7H
+CSEG			AT					000BH      ; Timer 0 ISR
+
+MOV			TL0,		#090H
+MOV			TH0,		#0F7H
 
 CALL			 	WAVES
-JB					FINISH_ROUND,END_BH
+;JB					FINISH_ROUND,END_BH        ; AM
 RETI
-END_BH: 
-CLR 				FINISH_ROUND ;G
-SETB			    END_SIN_WAVE_PERIOD
-RETI
+;END_BH: 								 	   ; AM
+;CLR 				FINISH_ROUND               ; for G (in the future)  ;AM
+;SETB			    END_SIN_WAVE_PERIOD        ; AM
+;RETI
 
 
  
-CSEG			AT					002BH	
-CLR					TF2													
-SETB 				FLRG_TIMER2
+CSEG			AT					002BH	   ; Timer 2 interrupts - sample rate 
+CLR					TF2				           ; Timer 2 Overflow Flag.								
+SETB 			 	FLRG_TIMER2
 RETI							
 
 CSEG			AT					003BH
-CALL				 SPI_FUNC
+CALL				SPI_FUNC
 RETI	
 
 CSEG			AT					0023H
-CALL UART_FUNC				
+CALL				UART_FUNC				
 RETI
 
 
@@ -50,9 +52,9 @@ RETI
 ;###################MAIN##########################################
 CSEG			AT					0100H
 MAIN:
-;
-SETB 		PADC					
-MOV 		IEIP2, #11101111B		
+
+;SETB 		PADC		                ; ADC interrupt priority			
+;MOV 		IEIP2, #11101111B		    ; Secondary Interrupt Enable Register
 
 
 ; TIMER2 
@@ -66,41 +68,45 @@ CLR				CNT2					; Have Timer2 run as a timer.
 CLR				CAP2					; Enable its 16-bit autoreload mode.
 SETB			TR2						; Turn on Timer2.
 SETB			ET2						; Enable the Timer2 interrupt.  You will _not_ want to do this.
-;PWM
 
+;PWM
 MOV 			PWMCON,#013H  ; mode1 send using p2.7
 MOV 			PWM0L, #255d
 MOV 			PWM1L, #255d
 MOV 			PWM1H, #255d
 MOV 			PWM0H, #255d
 
-;
+
 SETB			P2.4
 CLR  			P2.5
 ;SPI 								  
 ANL				CFG841,	#10111101B
 SETB			SPE
-SETB       	   SPIM
+SETB			SPIM
 CLR				CPOL
 CLR				CPHA
 SETB			SPR1
 SETB			SPR0
-ORL				IEIP2,#00000001B 							; SPI
-SETB			ES									; Enable the serial interrupt.
- ;DAC
+MOV             IEIP2, #01h     ; enable I2C/SPI interrupt
+
+;DAC
 MOV 			DACCON,		#00D6H						
 ANL				ADCCON1,	#10111111B
 ORL				ADCCON1,	#10000000B
-; UART TIMER
+
+;UART TIMER
 MOV				T3FD,		#08H					;Sets timer 3
-ANL				T3CON,		#01111000B				;Sets the timer and the DIV value (2)
+ANL				T3CON,		#01111000B				;Sets the timer and the DIV value (4)
 ORL				T3CON,		#10000100B
 ANL				TMOD,		#11110000B				;Sets timer 0 
+;ORL				TMOD,		#00000010B
+;MOV				TH0,		#040
 ORL				TMOD,		#00000001B
 MOV				TL0,		#090H
 MOV				TH0,		#0F7H
 
-; UART
+
+;UART
 CLR				SM0
 SETB			SM1									; Run the UART in 8-bit variable rate mode.
 SETB			REN									; We want to be able to receive data.
@@ -108,23 +114,21 @@ SETB			TR0									; Turn Timer 0 on.
 SETB			ET0									; Enable the Interrupts Timer 0
 SETB			ES									; Enable the serial interrupt.
 SETB			EA
-;
-SETB			FLRG_WAVE    
+
+
 MOV				DPTR,		#sin        
-;
-MOV				ADD_H,	#0         
-MOV				ADD_L,	#100
-;
-CLR			    END_SPI
+
+MOV				ADD_H,		#0         
+MOV				ADD_L,  	#100
+
 CLR			    END_FIRST_SPI
+CLR			    END_SPI
 CLR			    FINISHED_UART_LOOP
-;
-
-
 
 
 
 USER_UPDATE:
+;updating the engine rotation rate by UART
 JNB FLRG_END_UART, ROUTINE
 PUSH ACC
 PUSH PSW
@@ -144,38 +148,34 @@ CLR						A
 ADDC					A,			B
 MOV						ADD_H,		A        
 
-END_UP:							
-SETB FLRG_WAVE			
+END_UP:										
 POP  PSW
 POP  ACC
 
+
 ROUTINE:
-
-
 ;*\FIRST_INSERT REQUST ANGLE  -  MSB
-JNB 					FLRG_TIMER2,USER_UPDATE
-CLR					    FLRG_TIMER2
+JNB 			FLRG_TIMER2, USER_UPDATE
+CLR			    FLRG_TIMER2
 
-CPL 					P3.4
-CLR 		     		P3.7			;ss pin
-MOV			 	 		SPIDAT,	#00000000B
-JNB						END_FIRST_SPI,$ 	; NOW WE HAVE THE DGIMA IN R2 SO WE CAN CALL THE FUNC
-MOV						SPIDAT,		#00000000B ; LSB
+CPL				P3.4
+CLR				P3.7			    ; ss pin
+MOV				SPIDAT,	#00000000B
+JNB				END_FIRST_SPI,$ 	; NOW WE HAVE THE DGIMA
+MOV				SPIDAT,	#00000000B  ; LSB
+JNB				END_SPI,$ 
 
+CLR				END_FIRST_SPI	
+CLR				END_SPI
 
-	
-JNB					  END_SPI,$ 
-CLR					  END_FIRST_SPI	
-CLR 				  END_SPI
+MOV				R0,		#STRING
+CALL			ADD_FUNC 		
+SETB	 	 	TI				
 
-MOV 		         R0,		#STRING
-CALL				 ADD_FUNC 		
-SETB				 TI				
+JNB				FINISHED_UART_LOOP,$
+CLR				FINISHED_UART_LOOP	
 
-JNB 			    FINISHED_UART_LOOP,$
-CLR 			   	FINISHED_UART_LOOP	
-
-JMP			 		USER_UPDATE
+JMP				USER_UPDATE
 
 
 
@@ -185,6 +185,7 @@ JMP			 		USER_UPDATE
 ADD_FUNC:
 PUSH ACC
 PUSH PSW
+
 MOV DPH_TEMP,DPH   
 MOV DPL_TEMP,DPL
 MOV DPP_TEMP,DPP
@@ -217,6 +218,7 @@ MOV			STRING+5,	 #0D							 ;flag of finished string
 MOV DPP,DPP_TEMP 
 MOV DPL,DPL_TEMP 
 MOV DPH_TEMP,DPH 
+
 POP PSW
 POP ACC
 RET
@@ -232,7 +234,7 @@ PUSH  PSW
 
 ;Check if the top counter has slipped beyond 200
 CJNE			COUNTER_H,		#200D,		SUB_S 
-SETB 			FINISH_ROUND
+;SETB 			FINISH_ROUND           ; AM
 MOV				COUNTER_H,		#000H
 JMP				NEXT_S
 SUB_S:
@@ -240,7 +242,7 @@ JC				NEXT_S
 CLR				C
 MOV				A,		COUNTER_H	
 SUBB			A,		#200
-SETB 			FINISH_ROUND
+;SETB 			FINISH_ROUND           ; AM
 
 MOV				COUNTER_H,		A
 
@@ -255,8 +257,9 @@ MOV		   		DAC1L,		A
 MOV				TARGET,		A
 MOV 		 	CURRENT_MEASUREMENT, MSB_SAMPLE
 CALL		 	MULsubbOfAngle
-;MOV		DAC1L,		RESULT
-MOV 			PWM0H,		#200
+;MOV				DAC1L,		RESULT
+;MOV 			PWM0H,		RESULT
+MOV 			PWM0H,		#200D
 MOV		 		PWM0L,		#0D
 
 
@@ -353,18 +356,21 @@ RET
 SPI_FUNC:
 PUSH ACC
 PUSH PSW
-	JB END_FIRST_SPI,SECOND_SPI
-	MOV	MSB_SAMPLE,	SPIDAT	; needed to clear ISPI.
-	;CJNE MSB_SAMPLE,#0FH
-	SETB END_FIRST_SPI
+
+JB		END_FIRST_SPI, SECOND_SPI
+MOV		MSB_SAMPLE,	   SPIDAT	; needed to clear ISPI.
+;CJNE MSB_SAMPLE,#0FH
+SETB  	END_FIRST_SPI
 	
-	POP PSW
-	POP ACC
-	RET
-	SECOND_SPI:
-	MOV	LSB_SAMPLE,	SPIDAT	; needed to clear ISPI.
-	SETB P3.7		; return SS high 
-	SETB END_SPI
+POP PSW
+POP ACC
+RET
+
+SECOND_SPI:
+MOV		LSB_SAMPLE,	SPIDAT	; needed to clear ISPI.
+SETB P3.7		            ; return SS high 
+SETB END_SPI
+
 POP PSW
 POP ACC
 RET
@@ -635,8 +641,6 @@ DB	250
 
 
 
-
-
 ;All Location of flags, etc.
 DSEG				AT		0030H
 ADD_H:						DS		1   ; Byte
@@ -661,7 +665,6 @@ BSEG
 FLRG_UNITS:		  		    DBIT	1
 FLRG_TENS:		 		    DBIT	1
 FLRG_HUNDREDS:			    DBIT	1
-FLRG_WAVE:				    DBIT	1
 FLRG_END_UART:				DBIT	1
 FLRG_S:		    			DBIT	1
 CHECK_F:	    			DBIT	1
@@ -671,8 +674,8 @@ FINISHED_UART: 				DBIT    1
 FINISHED_UART_LOOP: 		DBIT    1	
 END_FIRST_SPI:				DBIT 	1
 END_SPI:					DBIT	1
-FINISH_ROUND:        		DBIT 	1
-END_SIN_WAVE_PERIOD:	 	DBIT 	1
+;FINISH_ROUND:        		DBIT 	1       ; AM
+;END_SIN_WAVE_PERIOD:	 	DBIT 	1       ; AM
 FLRG_TIMER2:		 		DBIT	1
 FIRST_SIN:		     		DBIT    1
 
