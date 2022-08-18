@@ -6,10 +6,7 @@ COMPLEMENT 		  EQU P2.4
 	 
 #include <ADUC841.H>
 
-;UNITS				EQU			R2
-;TENS				EQU			R3
-;HUNDREDS			EQU			R4
-;WAVE				EQU         R5	
+
 COUNTER_H			EQU			R6
 COUNTER_L			EQU			R7      
 
@@ -19,18 +16,15 @@ JMP					MAIN
 
 
 
-CSEG			AT					000BH      ; Timer 0 ISR
+CSEG			AT					000BH      ; Timer 0 ISR, TO MAKE WAVES - SIN, SINE LIST
 
-MOV			TL0,		#090H
 MOV			TH0,		#0F7H
+MOV			TL0,		#090H
+
 
 CALL			 	WAVES
-;JB					FINISH_ROUND,END_BH        ; AM
 RETI
-;END_BH: 								 	   ; AM
-;CLR 				FINISH_ROUND               ; for G (in the future)  ;AM
-;SETB			    END_SIN_WAVE_PERIOD        ; AM
-;RETI
+
 
 
  
@@ -118,6 +112,7 @@ SETB			EA
 
 MOV				DPTR,		#sin        
 
+MOV				COUNTER_L,  #0
 MOV				ADD_H,		#0         
 MOV				ADD_L,  	#100
 
@@ -233,50 +228,101 @@ PUSH  ACC
 PUSH  PSW
 
 ;Check if the top counter has slipped beyond 200
-CJNE			COUNTER_H,		#200D,		SUB_S 
-;SETB 			FINISH_ROUND           ; AM
-MOV				COUNTER_H,		#000H
+CJNE			COUNTER_H,		#200D,		SUB_S    ; IF COUNTER_H < 200 THEN C == 1
+MOV				COUNTER_H,		#000H                ; IF COUNTER_H == 200
 JMP				NEXT_S
 SUB_S:
 JC				NEXT_S		
-CLR				C
+CLR				C									 ;IF COUNTER_H > 200
 MOV				A,		COUNTER_H	
 SUBB			A,		#200
-;SETB 			FINISH_ROUND           ; AM
-
 MOV				COUNTER_H,		A
 
 NEXT_S:
+CLR				C
 MOV				A,			COUNTER_H
-MOV				DPTR,		#SIN
+MOV				DPTR,		#SIN                    ; DPTR - INITIAL element OF LIST
 MOVC			A,			@A+DPTR
-MOV				DPTR,		#NUMS
+;MOV				DPTR,		#NUMS               ??!!??!!??!!
 
 CONTINUE:
 MOV		   		DAC1L,		A
 MOV				TARGET,		A
-MOV 		 	CURRENT_MEASUREMENT, MSB_SAMPLE
+MOV 		 	CURRENT_MEASUREMENT, MSB_SAMPLE  ; TO EQU TARGET
 CALL		 	MULsubbOfAngle
-;MOV				DAC1L,		RESULT
+;MOV			DAC1L,		RESULT
 ;MOV 			PWM0H,		RESULT
-MOV 			PWM0H,		#200D
-MOV		 		PWM0L,		#0D
+MOV 			PWM0H,		#200D                ; Constant Duty Cycle Non-linear control
+MOV		 		PWM0L,		#0D                  ; PWM0L determines only 0.4% of DC 
 
 
 ;Counter update
 MOV				A,			ADD_L
 ADD				A,			COUNTER_L
-MOV				COUNTER_L,	A
+MOV				COUNTER_L,	A                    ; COUNTER_L = COUNTER_L + ADD_L
 MOV				A,			ADD_H
 ADDC			A,			COUNTER_H
-MOV				COUNTER_H,	A
+MOV				COUNTER_H,	A					 ; COUNTER_H = COUNTER_H + ADD_H + C
 
 
 POP	ACC
 POP	PSW
 RETI
 
+;################MULsubbOfAngle############################
+MULsubbOfAngle:
+PUSH ACC
+PUSH PSW
+;PUSH AR1
+;PUSH AR3
+USING 1
+SETB	RS0
+CLR		RS1
+;DESIERD = A   ## TARGET
+;MESSURMENT CURRENT IS R1
+MOV A ,TARGET
+MOV R1,CURRENT_MEASUREMENT
+CLR C
+SUBB A,R1
 
+;CPL P3.4
+JNB ACC.7,SetPositive
+CLR  POSITIVE
+SETB COMPLEMENT
+
+MOV R3, A
+CLR A
+CLR	C
+SUBB A, R3
+
+JMP EndOfsubbOfAngle
+
+SetPositive:
+SETB POSITIVE
+CLR  COMPLEMENT
+
+EndOfsubbOfAngle:
+
+
+;MOV A, RESULT
+;MOV B,#255D                   ; THE K OF MUL PID
+;MUL AB
+ADD A,ACC
+JNC NO_SATURATION
+MOV RESULT,#255
+JMP	ENDMULSTAGE
+
+NO_SATURATION:
+MOV RESULT,A
+
+
+ENDMULSTAGE:
+CLR		RS0
+USING 0
+POP PSW
+POP ACC
+RET
+;###############END#########MULsubbOfAngle##########################
 
 
 
@@ -375,62 +421,6 @@ POP PSW
 POP ACC
 RET
 ;##############END#############SPI_FUNC####################
-
-;################MULsubbOfAngle############################
-MULsubbOfAngle:
-PUSH ACC
-PUSH PSW
-;PUSH AR1
-;PUSH AR3
-USING 1
-SETB	RS0
-CLR		RS1
-;DESIERD = A   ## TARGET
-;MESSURMENT CURRENT IS R1
-MOV A ,TARGET
-MOV R1,CURRENT_MEASUREMENT
-CLR C
-SUBB A,R1
-
-;CPL P3.4
-JNB ACC.7,SetPositive
-CLR  POSITIVE
-SETB COMPLEMENT
-
-MOV R3, A
-CLR A
-CLR	C
-SUBB A, R3
-
-JMP EndOfsubbOfAngle
-
-SetPositive:
-SETB POSITIVE
-CLR  COMPLEMENT
-
-EndOfsubbOfAngle:
-
-
-;MOV A, RESULT
-;MOV B,#255D                   ; THE K OF MUL PID
-;MUL AB
-ADD A,ACC
-JNC NO_SATURATION
-MOV RESULT,#255
-JMP	ENDMULSTAGE
-
-NO_SATURATION:
-MOV RESULT,A
-
-
-ENDMULSTAGE:
-CLR		RS0
-USING 0
-POP PSW
-POP ACC
-RET
-;###############END#########MULsubbOfAngle##########################
-
 
 
 
@@ -674,8 +664,6 @@ FINISHED_UART: 				DBIT    1
 FINISHED_UART_LOOP: 		DBIT    1	
 END_FIRST_SPI:				DBIT 	1
 END_SPI:					DBIT	1
-;FINISH_ROUND:        		DBIT 	1       ; AM
-;END_SIN_WAVE_PERIOD:	 	DBIT 	1       ; AM
 FLRG_TIMER2:		 		DBIT	1
 FIRST_SIN:		     		DBIT    1
 
